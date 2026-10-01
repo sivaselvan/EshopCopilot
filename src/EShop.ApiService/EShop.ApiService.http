@@ -91,6 +91,49 @@ DELETE {{ApiService_HostAddress}}/api/orders/2
 
 ###
 
+@CustomerId = 5f45aad3-53b1-4b20-a416-6d8e7d91d87e
+
+### Get all customers
+GET {{ApiService_HostAddress}}/api/customers
+Accept: application/json
+
+###
+
+### Get customer by Id
+GET {{ApiService_HostAddress}}/api/customers/{{CustomerId}}
+Accept: application/json
+
+###
+
+### Create a new customer
+POST {{ApiService_HostAddress}}/api/customers
+Content-Type: application/json
+
+{
+  "firstName": "Noah",
+  "lastName": "Williams",
+  "email": "noah.williams@example.com"
+}
+
+###
+
+### Update an existing customer
+PUT {{ApiService_HostAddress}}/api/customers/{{CustomerId}}
+Content-Type: application/json
+
+{
+  "firstName": "Ava",
+  "lastName": "Thompson",
+  "email": "ava.thompson.updated@example.com"
+}
+
+###
+
+### Delete a customer
+DELETE {{ApiService_HostAddress}}/api/customers/{{CustomerId}}
+
+###
+
 @CartCustomerName = Ava%20Thompson
 
 ### Get the cart before adding items

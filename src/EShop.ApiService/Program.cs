@@ -15,6 +15,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<ProductService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<ShoppingCartService>();
+builder.Services.AddSingleton<CustomerService>();
 
 var app = builder.Build();
 
@@ -31,5 +32,6 @@ app.MapDefaultEndpoints();
 app.MapProductEndpoints();
 app.MapOrderEndpoints();
 app.MapShoppingCartEndpoints();
+app.MapCustomerEndpoints();
 
 app.Run();
