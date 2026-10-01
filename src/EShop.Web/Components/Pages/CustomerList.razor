@@ -1,0 +1,194 @@
+@page "/customers"
+@rendermode InteractiveServer
+@using EShop.Web.Models
+@using EShop.Web.Services
+@inject CustomerApiClient CustomerApiClient
+
+<PageTitle>Customers</PageTitle>
+
+<h1>Customers</h1>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h4">@(editingCustomer is null ? "Add customer" : "Edit customer")</h2>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label" for="first-name">First name</label>
+                <input id="first-name" class="form-control" @bind="customerForm.FirstName" disabled="@isBusy" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="last-name">Last name</label>
+                <input id="last-name" class="form-control" @bind="customerForm.LastName" disabled="@isBusy" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="email">Email</label>
+                <input id="email" class="form-control" type="email" @bind="customerForm.Email" disabled="@isBusy" />
+            </div>
+        </div>
+        <div class="mt-3">
+            <button class="btn btn-primary me-2" @onclick="SaveCustomerAsync" disabled="@isBusy">
+                @(editingCustomer is null ? "Add customer" : "Save changes")
+            </button>
+            @if (editingCustomer is not null)
+            {
+                <button class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@isBusy">Cancel</button>
+            }
+        </div>
+    </div>
+</div>
+
+@if (customers is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (customers.Count == 0)
+{
+    <p>No customers are available.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>First name</th>
+                    <th>Last name</th>
+                    <th>Email</th>
+                    <th><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var customer in customers)
+                {
+                    <tr>
+                        <td>@customer.FirstName</td>
+                        <td>@customer.LastName</td>
+                        <td>@customer.Email</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditCustomer(customer)" disabled="@isBusy">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCustomerAsync(customer)" disabled="@isBusy">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<CustomerDto>? customers;
+    private CustomerDto customerForm = new();
+    private CustomerDto? editingCustomer;
+    private string? errorMessage;
+    private bool isBusy;
+
+    protected override async Task OnInitializedAsync() => await LoadCustomersAsync();
+
+    private async Task LoadCustomersAsync()
+    {
+        try
+        {
+            customers = (await CustomerApiClient.GetAllAsync()).ToList();
+        }
+        catch (HttpRequestException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            errorMessage = exception.Message;
+        }
+    }
+
+    private async Task SaveCustomerAsync()
+    {
+        if (string.IsNullOrWhiteSpace(customerForm.FirstName) ||
+            string.IsNullOrWhiteSpace(customerForm.LastName) ||
+            string.IsNullOrWhiteSpace(customerForm.Email))
+        {
+            errorMessage = "First name, last name, and email are required.";
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            if (editingCustomer is null)
+            {
+                var createdCustomer = await CustomerApiClient.CreateAsync(customerForm);
+                customers?.Add(createdCustomer);
+            }
+            else
+            {
+                await CustomerApiClient.UpdateAsync(customerForm);
+                var index = customers?.FindIndex(customer => customer.Id == customerForm.Id) ?? -1;
+                if (index >= 0 && customers is not null)
+                {
+                    customers[index] = customerForm;
+                }
+            }
+
+            CancelEdit();
+        });
+    }
+
+    private void EditCustomer(CustomerDto customer)
+    {
+        editingCustomer = customer;
+        customerForm = new CustomerDto
+        {
+            Id = customer.Id,
+            FirstName = customer.FirstName,
+            LastName = customer.LastName,
+            Email = customer.Email
+        };
+        errorMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingCustomer = null;
+        customerForm = new();
+    }
+
+    private async Task DeleteCustomerAsync(CustomerDto customer)
+    {
+        await ExecuteAsync(async () =>
+        {
+            await CustomerApiClient.DeleteAsync(customer.Id);
+            customers?.RemoveAll(existingCustomer => existingCustomer.Id == customer.Id);
+
+            if (editingCustomer?.Id == customer.Id)
+            {
+                CancelEdit();
+            }
+        });
+    }
+
+    private async Task ExecuteAsync(Func<Task> action)
+    {
+        isBusy = true;
+        errorMessage = null;
+
+        try
+        {
+            await action();
+        }
+        catch (HttpRequestException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

@@ -15,6 +15,8 @@ builder.Services.AddHttpClient<ProductApiClient>(client =>
     client.BaseAddress = new Uri("https+http://apiservice"));
 builder.Services.AddHttpClient<ShoppingCartApiClient>(client =>
     client.BaseAddress = new Uri("https+http://apiservice"));
+builder.Services.AddHttpClient<CustomerApiClient>(client =>
+    client.BaseAddress = new Uri("https+http://apiservice"));
 
 builder.Services.AddOutputCache();
 
