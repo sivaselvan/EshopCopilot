@@ -47,3 +47,46 @@ Content-Type: application/json
 DELETE {{ApiService_HostAddress}}/api/products/5
 
 ###
+
+### Get all orders
+GET {{ApiService_HostAddress}}/api/orders
+Accept: application/json
+
+###
+
+### Get order by Id
+GET {{ApiService_HostAddress}}/api/orders/1
+Accept: application/json
+
+###
+
+### Create a new order
+POST {{ApiService_HostAddress}}/api/orders
+Content-Type: application/json
+
+{
+  "customerName": "Noah Williams",
+  "orderDate": "2026-10-01T00:00:00",
+  "totalAmount": 199.97,
+  "status": "Processing"
+}
+
+###
+
+### Update an existing order
+PUT {{ApiService_HostAddress}}/api/orders/1
+Content-Type: application/json
+
+{
+  "customerName": "Ava Thompson",
+  "orderDate": "2026-09-15T00:00:00",
+  "totalAmount": 114.98,
+  "status": "Delivered"
+}
+
+###
+
+### Delete an order
+DELETE {{ApiService_HostAddress}}/api/orders/2
+
+###

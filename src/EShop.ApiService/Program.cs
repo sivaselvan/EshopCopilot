@@ -13,6 +13,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<ProductService>();
+builder.Services.AddSingleton<OrderService>();
 
 var app = builder.Build();
 
@@ -27,6 +28,6 @@ if (app.Environment.IsDevelopment())
 app.MapDefaultEndpoints();
 
 app.MapProductEndpoints();
+app.MapOrderEndpoints();
 
 app.Run();
-
