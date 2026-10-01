@@ -181,6 +181,7 @@ Content-Type: application/json
 ###
 
 ### Checkout the cart
+# @name cartExampleCheckout
 POST {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}/checkout
 
 ###
@@ -192,7 +193,146 @@ Accept: application/json
 ###
 
 ### Confirm the order was created
-GET {{ApiService_HostAddress}}/api/orders/3
+GET {{ApiService_HostAddress}}/api/orders/{{cartExampleCheckout.response.body.$.id}}
 Accept: application/json
 
 ###
+
+###
+# Checkout workflow: create a cart through its first item, then verify checkout cleanup.
+# Run with Aspire and update this address if the dashboard assigns a different API port.
+# If a previous run failed before checkout, change the customer name to keep the workflow isolated.
+@CheckoutWorkflowCustomerName = checkout-workflow-user
+@CheckoutWorkflowProductId = 1
+@CheckoutWorkflowQuantity = 1
+
+###
+# Step 1: validate the seeded product used by the checkout workflow.
+# @name checkoutWorkflowProduct
+GET {{ApiService_HostAddress}}/api/products/{{CheckoutWorkflowProductId}}
+Accept: application/json
+
+> {%
+client.test("checkout workflow product exists", function () {
+  client.assert(response.status === 200, "Expected 200 OK for the seeded product.");
+  client.assert(response.body.id === 1, "Expected the workflow to use seeded product 1.");
+  client.assert(typeof response.body.name === "string" && response.body.name.length > 0, "Expected a product name.");
+  client.assert(typeof response.body.price === "number", "Expected a numeric product price.");
+});
+
+client.global.set("checkoutWorkflowProductId", String(response.body.id));
+client.global.set("checkoutWorkflowProductName", response.body.name);
+client.global.set("checkoutWorkflowUnitPrice", String(response.body.price));
+%}
+
+###
+# Step 1a: verify the cart does not already exist.
+# Expected: 404 Not Found. If this fails, change @CheckoutWorkflowCustomerName.
+# @name checkoutWorkflowCartBefore
+GET {{ApiService_HostAddress}}/api/carts/{{CheckoutWorkflowCustomerName}}
+Accept: application/json
+
+> {%
+client.test("checkout workflow starts without a cart", function () {
+  client.assert(response.status === 404, "Expected 404 before the first add-to-cart request.");
+});
+%}
+
+###
+# Step 2: adding the first item creates the cart.
+# @name checkoutWorkflowCart
+POST {{ApiService_HostAddress}}/api/carts/{{CheckoutWorkflowCustomerName}}/items
+Content-Type: application/json
+
+{
+  "productId": {{CheckoutWorkflowProductId}},
+  "quantity": {{CheckoutWorkflowQuantity}}
+}
+
+> {%
+var expectedProductId = Number(client.global.get("checkoutWorkflowProductId"));
+var expectedProductName = client.global.get("checkoutWorkflowProductName");
+var expectedUnitPrice = Number(client.global.get("checkoutWorkflowUnitPrice"));
+
+client.test("first add creates the cart with the requested item", function () {
+  client.assert(response.status === 200, "Expected 200 OK from add-to-cart.");
+  client.assert(response.body.customerName === "checkout-workflow-user", "Expected the cart to belong to the workflow customer.");
+  client.assert(Array.isArray(response.body.items), "Expected cart items to be an array.");
+  client.assert(response.body.items.length === 1, "Expected exactly one cart line after the first add.");
+  client.assert(response.body.items[0].productId === expectedProductId, "Expected the selected product in the cart.");
+  client.assert(response.body.items[0].productName === expectedProductName, "Expected the product name to match.");
+  client.assert(response.body.items[0].quantity === 1, "Expected a quantity of 1 in the cart.");
+  client.assert(response.body.items[0].unitPrice === expectedUnitPrice, "Expected the cart unit price to match the product.");
+  client.assert(response.body.items[0].lineTotal === expectedUnitPrice, "Expected the cart line total to equal price x quantity.");
+  client.assert(response.body.totalAmount === expectedUnitPrice, "Expected the cart total amount to match the item total.");
+});
+%}
+
+###
+# Step 3: checkout creates an order and clears the cart.
+# @name checkoutWorkflowOrder
+POST {{ApiService_HostAddress}}/api/carts/{{CheckoutWorkflowCustomerName}}/checkout
+
+> {%
+var expectedProductId = Number(client.global.get("checkoutWorkflowProductId"));
+var expectedProductName = client.global.get("checkoutWorkflowProductName");
+var expectedUnitPrice = Number(client.global.get("checkoutWorkflowUnitPrice"));
+
+client.test("checkout returns a created order", function () {
+  client.assert(response.status === 201, "Expected 201 Created from checkout.");
+  client.assert(typeof response.body.id === "number" && response.body.id > 0, "Expected checkout to return an order id.");
+  client.assert(response.body.customerName === "checkout-workflow-user", "Expected the order customer to match the cart.");
+  client.assert(response.body.status === "Processing", "Expected new checkout orders to be Processing.");
+  client.assert(typeof response.body.orderDate === "string" && response.body.orderDate.length > 0, "Expected checkout to stamp an order date.");
+  client.assert(Array.isArray(response.body.items), "Expected order items to be an array.");
+  client.assert(response.body.items.length === 1, "Expected exactly one item in the created order.");
+  client.assert(response.body.items[0].productId === expectedProductId, "Expected the selected product in the order.");
+  client.assert(response.body.items[0].productName === expectedProductName, "Expected the order product name to match.");
+  client.assert(response.body.items[0].quantity === 1, "Expected the order quantity to match the cart.");
+  client.assert(response.body.items[0].unitPrice === expectedUnitPrice, "Expected the order unit price to match the product.");
+  client.assert(response.body.items[0].lineTotal === expectedUnitPrice, "Expected the order line total to equal price x quantity.");
+  client.assert(response.body.totalAmount === expectedUnitPrice, "Expected the order total amount to match checkout.");
+});
+
+client.global.set("checkoutWorkflowOrderId", String(response.body.id));
+%}
+
+###
+# Validation: checkout removes the cart instead of keeping an empty cart.
+# @name checkoutWorkflowCartAfter
+GET {{ApiService_HostAddress}}/api/carts/{{CheckoutWorkflowCustomerName}}
+Accept: application/json
+
+> {%
+client.test("checkout clears the cart by deleting it", function () {
+  client.assert(response.status === 404, "Expected 404 after checkout because the cart is removed.");
+});
+%}
+
+###
+# Validation: verify the created order persisted and matches the checkout response.
+# @name checkoutWorkflowPersistedOrder
+GET {{ApiService_HostAddress}}/api/orders/{{checkoutWorkflowOrderId}}
+Accept: application/json
+
+> {%
+var expectedOrderId = Number(client.global.get("checkoutWorkflowOrderId"));
+var expectedProductId = Number(client.global.get("checkoutWorkflowProductId"));
+var expectedProductName = client.global.get("checkoutWorkflowProductName");
+var expectedUnitPrice = Number(client.global.get("checkoutWorkflowUnitPrice"));
+
+client.test("checkout creates a persisted order", function () {
+  client.assert(response.status === 200, "Expected 200 OK when reading the created order.");
+  client.assert(response.body.id === expectedOrderId, "Expected the persisted order id to match checkout.");
+  client.assert(response.body.customerName === "checkout-workflow-user", "Expected the persisted order customer to match.");
+  client.assert(response.body.status === "Processing", "Expected the persisted order status to remain Processing.");
+  client.assert(Array.isArray(response.body.items), "Expected persisted order items to be an array.");
+  client.assert(response.body.items.length === 1, "Expected exactly one persisted order item.");
+  client.assert(response.body.items[0].productId === expectedProductId, "Expected the persisted product id to match.");
+  client.assert(response.body.items[0].productName === expectedProductName, "Expected the persisted product name to match.");
+  client.assert(response.body.items[0].quantity === 1, "Expected the persisted quantity to remain 1.");
+  client.assert(response.body.items[0].unitPrice === expectedUnitPrice, "Expected the persisted unit price to match.");
+  client.assert(response.body.items[0].lineTotal === expectedUnitPrice, "Expected the persisted line total to match.");
+  client.assert(response.body.totalAmount === expectedUnitPrice, "Expected the persisted total amount to match checkout.");
+});
+%}
