@@ -1,0 +1,242 @@
+@page "/cart"
+@rendermode InteractiveServer
+@using EShop.Web.Models
+@using EShop.Web.Services
+@inject ProductApiClient ProductApiClient
+@inject ShoppingCartApiClient ShoppingCartApiClient
+
+<PageTitle>Shopping Cart</PageTitle>
+
+<h1>Shopping Cart</h1>
+
+<div class="row g-3 align-items-end mb-4">
+    <div class="col-md-6">
+        <label class="form-label" for="customer-name">Customer name</label>
+        <input id="customer-name" class="form-control" @bind="customerName" />
+    </div>
+    <div class="col-md-auto">
+        <button class="btn btn-outline-primary" @onclick="LoadCartAsync" disabled="@isBusy">Load Cart</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success" role="alert">@successMessage</div>
+}
+
+<h2>Products</h2>
+
+@if (products.Count == 0)
+{
+    <p>No products are available.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 g-3 mb-5">
+        @foreach (var product in products)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3 class="card-title h5">@product.Name</h3>
+                        <p class="card-text">@product.Description</p>
+                        <p class="fw-bold">@product.Price.ToString("C")</p>
+                        <div class="input-group">
+                            <label class="visually-hidden" for="quantity-@product.Id">Quantity for @product.Name</label>
+                            <input id="quantity-@product.Id" class="form-control" type="number" min="1" @bind="quantities[product.Id]" />
+                            <button class="btn btn-primary" @onclick="() => AddItemAsync(product)" disabled="@isBusy">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<h2>Your Cart</h2>
+
+@if (cart is null || cart.Items.Count == 0)
+{
+    <p>Your cart is empty.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Line Total</th>
+                    <th><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in cart.Items)
+                {
+                    <tr>
+                        <td>@item.ProductName</td>
+                        <td>@item.UnitPrice.ToString("C")</td>
+                        <td>@item.Quantity</td>
+                        <td>@item.LineTotal.ToString("C")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveItemAsync(item.ProductId)" disabled="@isBusy">Remove</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total</th>
+                    <th>@cart.TotalAmount.ToString("C")</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <button class="btn btn-success" @onclick="CheckoutAsync" disabled="@isBusy">Checkout</button>
+}
+
+@code {
+    private readonly Dictionary<int, int> quantities = [];
+    private List<ProductDto> products = [];
+    private ShoppingCartDto? cart;
+    private string customerName = string.Empty;
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            products = (await ProductApiClient.GetAllAsync()).ToList();
+            foreach (var product in products)
+            {
+                quantities[product.Id] = 1;
+            }
+        }
+        catch (HttpRequestException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            errorMessage = exception.Message;
+        }
+    }
+
+    private async Task LoadCartAsync()
+    {
+        if (!EnsureCustomerName())
+        {
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            cart = await ShoppingCartApiClient.GetAsync(customerName);
+            successMessage = cart is null ? "No existing cart was found." : "Cart loaded.";
+        });
+    }
+
+    private async Task AddItemAsync(ProductDto product)
+    {
+        if (!EnsureCustomerName())
+        {
+            return;
+        }
+
+        var quantity = quantities[product.Id];
+        if (quantity <= 0)
+        {
+            errorMessage = "Quantity must be greater than zero.";
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            cart = await ShoppingCartApiClient.AddItemAsync(customerName, new AddCartItemRequest
+            {
+                ProductId = product.Id,
+                Quantity = quantity
+            });
+            successMessage = $"{product.Name} was added to the cart.";
+        });
+    }
+
+    private async Task RemoveItemAsync(int productId)
+    {
+        if (!EnsureCustomerName())
+        {
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            await ShoppingCartApiClient.RemoveItemAsync(customerName, productId);
+            cart = await ShoppingCartApiClient.GetAsync(customerName);
+            successMessage = "Item removed from the cart.";
+        });
+    }
+
+    private async Task CheckoutAsync()
+    {
+        if (!EnsureCustomerName())
+        {
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            var order = await ShoppingCartApiClient.CheckoutAsync(customerName);
+            cart = null;
+            successMessage = $"Order #{order.Id} was created for {order.TotalAmount:C}.";
+        });
+    }
+
+    private bool EnsureCustomerName()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (!string.IsNullOrWhiteSpace(customerName))
+        {
+            return true;
+        }
+
+        errorMessage = "Enter a customer name before managing a cart.";
+        return false;
+    }
+
+    private async Task ExecuteAsync(Func<Task> action)
+    {
+        isBusy = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await action();
+        }
+        catch (HttpRequestException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

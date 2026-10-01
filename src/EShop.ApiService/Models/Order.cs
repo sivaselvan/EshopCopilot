@@ -7,4 +7,5 @@ public class Order
     public DateTime OrderDate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
+    public List<OrderItem> Items { get; set; } = [];
 }

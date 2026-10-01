@@ -90,3 +90,66 @@ Content-Type: application/json
 DELETE {{ApiService_HostAddress}}/api/orders/2
 
 ###
+
+@CartCustomerName = Ava%20Thompson
+
+### Get the cart before adding items
+GET {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}
+Accept: application/json
+
+###
+
+### Add a product to the cart
+POST {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}/items
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 1
+}
+
+###
+
+### Add the same product to increase its quantity
+POST {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}/items
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 2
+}
+
+###
+
+### Remove a product line from the cart
+DELETE {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}/items/1
+
+###
+
+### Add a product before checkout
+POST {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}/items
+Content-Type: application/json
+
+{
+  "productId": 2,
+  "quantity": 1
+}
+
+###
+
+### Checkout the cart
+POST {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}/checkout
+
+###
+
+### Confirm the cart is cleared
+GET {{ApiService_HostAddress}}/api/carts/{{CartCustomerName}}
+Accept: application/json
+
+###
+
+### Confirm the order was created
+GET {{ApiService_HostAddress}}/api/orders/3
+Accept: application/json
+
+###
