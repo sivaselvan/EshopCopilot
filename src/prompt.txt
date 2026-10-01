@@ -1,3 +1,148 @@
-1.Expline the poject shortly  
-2. create product domain class with ID , Name,Description, Price and Imageuri properties 
-3.
+1
+Hands-on Explore: Prompting the CLI
+prompt:
+explain the project shortly
+
+2
+The Target Entity: Generating the Product domain class
+prompt:
+Create Product domain class with Id, Name, Description, Price and ImageUrl properties.
+
+3
+Hands-On: Building the EShop Product Business Logic (Services & DI)
+prompt:
+I need to implement the business logic and Minimal APIs for the `Product` domain model in the `ApiService` project. Please plan and execute the following steps:
+
+1. **ProductService.cs**: Create a new class that manages an in-memory `List<Product>`. Seed this list in the constructor with 5 realistic e-commerce products. Implement standard CRUD methods: GetAll, GetById, Create, Update, and Delete.
+2. **ProductEndpoints.cs**: Create a static class with an extension method `MapProductEndpoints(this IEndpointRouteBuilder app)`. Use Minimal APIs to expose the CRUD operations from `ProductService`.
+3. **Program.cs**: Update the DI container to register `ProductService` as a Singleton (to persist the in-memory list during the app lifecycle) and call `MapProductEndpoints()`.
+4. **ApiService.http**: Add complete HTTP request examples to test all 5 endpoints (GET all, GET by ID, POST new, PUT update, DELETE). Include valid JSON request bodies matching the Product model.
+
+Ensure the code follows modern C# 12 and .NET 10 Minimal API best practices.
+
+-- allow permissions
+
+4
+Enhance copilot-instructions.md file with adding Aspire parts
+prompt:
+enhance copilot-instructions.md file with adding Aspire part like use aspire run for running distributed apps, implement MapGroup endpoints, respect AddServiceDefaults(), and use collection expressions. Also add net10.0 and Minimal API structure conventions into best practices and styling.
+
+5
+The Prompt: Order Domain Business Logic
+prompt:
+I need to implement the `Order` domain model and its business logic in the `ApiService` project. 
+
+Please rely on the established custom instructions for the folder layout, endpoint mapping patterns, and DI registration. Plan and execute the following:
+
+1. Create an `Order` model.
+2. Create `OrderService` with an in-memory list (seed 2 example orders) and standard CRUD operations.
+3. Create `OrderEndpoints` to expose these CRUD operations. 
+4. Wire up the service and endpoints in `Program.cs`.
+5. Add test requests for all `Order` endpoints to `.http`.
+
+6
+Shopping Cart Planning Prompt
+prompt:
+I need to design the architecture and implementation plan for a new "Shopping Cart" feature in the EShopCopilot project. 
+
+Do not generate the full code yet. Provide a step-by-step execution plan covering both the `EShopCopilot.ApiService` (backend) and `EShopCopilot.Web` (Blazor frontend).
+
+Requirements:
+1. Users can add and remove `Product` items to/from their Shopping Cart.
+2. The Cart needs a Checkout operation.
+3. Upon successful Checkout, the system must create a new `Order` (referencing @OrderService.cs) and then clear/delete the Shopping Cart.
+
+Please outline:
+- The new domain models needed (e.g., ShoppingCart, CartItem).
+- The updates required in the ApiService (Services, Endpoints, DI).
+- The new components and API clients needed in the Web project.
+- The exact sequence of steps we should execute to build this.
+
+7
+Shopping Cart Accept Plan - Autopilot Prompt
+prompt:
+I've accepted the "Shopping Cart Feature — Implementation Plan" in the plan.md file. Please proceed and implement the plan with auto-pilot mode.
+
+8
+Customer Domain Business Logic Prompt with Skills
+backend prompt:
+/minimal-api-feature create the "Customer" feature
+
+frontend prompt:
+Use the blazor-crud-component skill to create a Blazor UI for the @Customer.cs domain
+or
+/blazor-crud-component create a Blazor UI for the @EShopCopilot.ApiService\Models\Customer.cs domain
+
+-- make it autopilot and develop this, enable all permissions
+
+9
+Create The Enterprise .NET Architect Agent
+
+Create with Copilot
+
+Describe your Agent:
+
+The Enterprise .NET Architect Agent
+A senior-level architectural guardrail specializing in .NET distributed systems, clean architecture boundaries, and high-performance patterns. This agent treats your code with enterprise rigidity, ensuring business rules do not bleed into transport layers
+
+What should it do? 
+Analyze proposed code updates for structural anti-patterns (e.g., tight coupling, missing async/await safety, violation of single-responsibility principles). It ensures Minimal APIs stay thin and routes all operational logic to the appropriate underlying services.
+
+When should it be used? 
+Before making major changes to core domain logic, when refactoring complex state transitions like the ShoppingCart checkout sequence, or during local code-review passes.
+
+--
+see agent
+.github/agents/dotnet-arch-guardian.agent.md
+
+10
+Testing Custom Dotnet Architect Agent
+
+/agent
+● Selected custom agent: dotnet-architect
+
+prompt: (correct the @ locations)
+review the interaction between @CartEndpoints.cs and @CartService.cs. Are we leaking business rules into the HTTP layer?
+
+prompt2:
+Using the /agent dotnet-architect profile, review the interaction between @CartEndpoints.cs and @CartService.cs. Are we leaking business rules into the HTTP layer?
+
+11
+Create E2E The EShop Workflow Orchestrator Custom Agent
+
+Create with Copilot
+
+Describe your Agent:
+The EShop Workflow Orchestrator
+
+Description
+An integration specialist focused entirely on end-to-end user journeys and operational state validation. This agent treats the backend API and the frontend WebApp as a cohesive unit, mapping out how data flows across the .NET Aspire orchestrator mesh.
+
+What should it do? 
+Validate cross-cutting scenarios (like adding an item to a cart, transforming that cart into an order during checkout, and asserting the cart is properly destroyed). It specializes in generating high-fidelity .http files and integration test runners.
+
+When should it be used? 
+Whenever a feature spans multiple domain contexts (e.g., combining Product, ShoppingCart, and Ordering), or when designing complete behavioral test suites.
+
+Tools the agent will use: @workspace dependency graph analyzer, raw REST API execution specs, and localized JSON payload verification profiles.
+
+--
+see agent
+.github/agents/integration-scenario-mapper.agent.md
+
+12
+Testing Custom EShop Integration Orchestrator Agent
+
+/agent
+● Selected custom agent: integration-scenario-mapper
+
+prompt:
+Analyze our checkout workflow and generate a complete EShopCopilot.ApiService.http test script that executes a 3-step lifecycle: create a cart, add product into cart, and execute checkout process. Ensure the script validates that the cart is cleared and an order is created.
+
+13
+Activate the Built-in GitHub MCP Server
+
+prompt:
+can you list the issues from the remote repo, use GitHub MCP Server
+or
+can you list the commits from the remote repo, use GitHub MCP Server
